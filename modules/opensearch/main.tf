@@ -15,9 +15,9 @@ resource "aws_opensearch_domain" "this" {
     dedicated_master_enabled = var.dedicated_master_enabled
     dedicated_master_count   = var.dedicated_master_count
     dedicated_master_type    = var.dedicated_master_type
-    zone_awareness_enabled   = true
+    zone_awareness_enabled   = var.zone_awareness_config_enabled
     zone_awareness_config {
-      availability_zone_count = 3
+      availability_zone_count = var.availability_zone_count
     }
   }
 
@@ -33,6 +33,23 @@ resource "aws_opensearch_domain" "this" {
     volume_size = var.opensearch_ebs_size # size in GB, minimum 10 GB
   }
 
+  node_to_node_encryption {
+    enabled = var.node_to_node_encryption_enabled
+  }
+
+  advanced_security_options {
+    enabled                        = var.enable_fgac
+    internal_user_database_enabled = var.enable_fgac
+
+    # Only set master user if FGAC is enabled
+    dynamic "master_user_options" {
+      for_each = var.enable_fgac ? [1] : []
+      content {
+        master_user_name     = var.os_master_username
+        master_user_password = var.os_master_password
+      }
+    }
+  }
   encrypt_at_rest {
     enabled = true
   }
@@ -53,4 +70,23 @@ resource "aws_opensearch_domain" "this" {
   }
 
   tags = var.tags
+}
+
+
+resource "aws_opensearch_domain_policy" "this" {
+  domain_name = aws_opensearch_domain.this.domain_name
+
+  access_policies = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          AWS = var.allowed_iam_principals
+        }
+        Action   = "es:*"
+        Resource = "${aws_opensearch_domain.this.arn}/*"
+      }
+    ]
+  })
 }

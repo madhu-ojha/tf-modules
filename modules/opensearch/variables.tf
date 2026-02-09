@@ -51,6 +51,19 @@ variable "opensearch_ebs_size" {
   type        = string
 }
 
+variable "zone_awareness_config_enabled" {
+  description = "Enable Zone awareness config"
+  type        = bool
+  default = false
+}
+
+variable "availability_zone_count" {
+  description = "Number of availability zones"
+  type        = number
+  default = 3
+}
+
+
 variable "snapshot_hour" {
   description = "Hour for automated daily snapshot (0-23 UTC)"
   type        = number
@@ -65,6 +78,41 @@ variable "logs_group_arn_index_slow_logs" {
 variable "logs_group_arn_search_slow_logs" {
   description = "Log group arn for search slow logs"
   type        =  string
+}
+
+variable "allowed_iam_principals" {
+  type        = list(string)
+  description = "IAM principals allowed to access OpenSearch"
+
+  validation {
+    condition     = length(var.allowed_iam_principals) > 0
+    error_message = "allowed_iam_principals must contain at least one IAM ARN."
+  }
+}
+
+variable "enable_fgac" {
+  description = "Enable fine-grained access control"
+  type        = bool
+  default     = false
+}
+
+variable "node_to_node_encryption_enabled" {
+  description = "Enable node-to-node encryption for OpenSearch (required for FGAC)"
+  type        = bool
+  default     = true
+}
+
+variable "os_master_username" {
+  description = "OpenSearch master username"
+  type        = string
+  default     = null
+}
+
+variable "os_master_password" {
+  description = "OpenSearch master password"
+  type        = string
+  sensitive   = true
+  default     = null
 }
 
 variable "tags" {
