@@ -57,6 +57,7 @@ module "mod_opensearch_domain" {
   # FGAC
   enable_fgac        = var.opensearch.security.enable_fgac
   node_to_node_encryption_enabled = var.opensearch.security.node_to_node_encrypted
+  enforce_https = var.opensearch.security.enforce_https
   os_master_username = var.opensearch.security.master_user.username
   os_master_password = var.opensearch.security.master_user.password
 

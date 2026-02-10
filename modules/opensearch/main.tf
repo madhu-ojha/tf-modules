@@ -37,6 +37,11 @@ resource "aws_opensearch_domain" "this" {
     enabled = var.node_to_node_encryption_enabled
   }
 
+  domain_endpoint_options {
+    enforce_https = var.enforce_https
+    tls_security_policy = "Policy-Min-TLS-1-2-2019-07"
+  }
+  
   advanced_security_options {
     enabled                        = var.enable_fgac
     internal_user_database_enabled = var.enable_fgac

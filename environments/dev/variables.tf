@@ -1,12 +1,12 @@
 variable "aws_region" {
-  type = string
+  type    = string
   default = "ap-northeast-1"
 }
 
 variable "cloudwatch" {
   type = object({
-    log_retention_days    = number
-    resource_policy_name  = string
+    log_retention_days   = number
+    resource_policy_name = string
     opensearch = object({
       index_slow_log_group  = string
       search_slow_log_group = string
@@ -40,8 +40,9 @@ variable "opensearch" {
       allowed_iam_principals = list(string)
 
       # New fields for FGAC
-      enable_fgac = bool
+      enable_fgac            = bool
       node_to_node_encrypted = bool
+      enforce_https          = bool
       master_user = object({
         username = string
         password = string

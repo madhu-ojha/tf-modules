@@ -102,6 +102,12 @@ variable "node_to_node_encryption_enabled" {
   default     = true
 }
 
+variable "enforce_https" {
+  description = "Enforce HTTPS on OpenSearch domain endpoint (required for FGAC)"
+  type        = bool
+  default     = true
+}
+
 variable "os_master_username" {
   description = "OpenSearch master username"
   type        = string
