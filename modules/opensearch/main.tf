@@ -41,15 +41,15 @@ resource "aws_opensearch_domain" "this" {
   }
 
   log_publishing_options {
-    log_type                  = "INDEX_SLOW_LOGS"
+    log_type                 = "INDEX_SLOW_LOGS"
     cloudwatch_log_group_arn = var.logs_group_arn_index_slow_logs
-    enabled                   = true
+    enabled                  = true
   }
 
   log_publishing_options {
-    log_type                  = "SEARCH_SLOW_LOGS"
+    log_type                 = "SEARCH_SLOW_LOGS"
     cloudwatch_log_group_arn = var.logs_group_arn_search_slow_logs
-    enabled                   = true
+    enabled                  = true
   }
 
   tags = var.tags
