@@ -1,0 +1,101 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - '*.tf'
+      - '.github/workflows/terraform-plan.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    name: Terraform Plan - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ['dev', 'staging', 'prod']
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ap-northeast-1
+          role-session-name: terraform-plan-session
+
+      - name: Terraform Init
+        working-directory: environments
+        run: terraform init -upgrade=false
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: environments
+        run: |
+          terraform plan -var-file="${{ matrix.environment }}/${{ matrix.environment }}.tfvars" -no-color -out=tfplan.binary 2>&1 | tee plan.txt
+          
+          # Extract the plan output length for display
+          PLAN_SIZE=$(wc -c < plan.txt)
+          echo "plan_size=$PLAN_SIZE" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const planFile = 'environments/plan.txt';
+            
+            let planContent = '';
+            try {
+              planContent = fs.readFileSync(planFile, 'utf8');
+            } catch (err) {
+              planContent = 'Failed to read plan output';
+            }
+            
+            // Truncate plan if it's too large (GitHub comment limit is 65k chars)
+            const maxLength = 65000;
+            if (planContent.length > maxLength) {
+              planContent = planContent.substring(0, maxLength) + '\n\n... (truncated)';
+            }
+            
+            const planStatus = '${{ steps.plan.outcome }}' === 'success' ? 'READY' : 'WARNING';
+            
+            let comment = `## Terraform Plan (${planStatus}) - ${{ matrix.environment }}\n\n`;
+            comment += '```terraform\n';
+            comment += planContent;
+            comment += '\n```\n\n';
+            comment += '**Note**: Please review the plan carefully before approving merge.\n';
+            comment += '**Actions**: Once approved and merged to main, the apply workflow will execute automatically.\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Save Plan Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ matrix.environment }}
+          path: environments/tfplan.binary
+          retention-days: 5

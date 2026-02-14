@@ -1,0 +1,113 @@
+name: Terraform Validate & Lint
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - 'bootstrap/**'
+      - 'versions.tf'
+      - '*.tf'
+      - '.github/workflows/terraform-validate.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - 'bootstrap/**'
+      - 'versions.tf'
+      - '*.tf'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    name: Validate Terraform - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ['dev', 'staging', 'prod']
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
+      - name: Format Check
+        id: fmt
+        run: |
+          echo "Checking Terraform formatting..."
+          terraform fmt -check -recursive
+        continue-on-error: true
+
+      - name: Init (Bootstrap)
+        id: init_bootstrap
+        run: |
+          cd bootstrap
+          terraform init -upgrade=false
+        continue-on-error: true
+
+      - name: Validate (Bootstrap)
+        id: validate_bootstrap
+        run: |
+          cd bootstrap
+          terraform validate
+        continue-on-error: true
+
+      - name: Init (${{ matrix.environment }} Environment)
+        id: init_env
+        working-directory: environments
+        run: terraform init -upgrade=false
+        continue-on-error: true
+
+      - name: Validate (${{ matrix.environment }} Environment)
+        id: validate_env
+        working-directory: environments
+        run: terraform validate
+        continue-on-error: true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fmt = '${{ steps.fmt.outcome }}';
+            const init_bootstrap = '${{ steps.init_bootstrap.outcome }}';
+            const validate_bootstrap = '${{ steps.validate_bootstrap.outcome }}';
+            const init_env = '${{ steps.init_env.outcome }}';
+            const validate_env = '${{ steps.validate_env.outcome }}';
+            
+            let comment = '## Terraform Validation Results - ${{ matrix.environment }}\n\n';
+            comment += `| Check | Status |\n|-------|--------|\n`;
+            comment += `| Format | ${fmt === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            comment += `| Bootstrap Init | ${init_bootstrap === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            comment += `| Bootstrap Validate | ${validate_bootstrap === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            comment += `| ${{ matrix.environment }} Init | ${init_env === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            comment += `| ${{ matrix.environment }} Validate | ${validate_env === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail if any check failed
+        if: |
+          steps.fmt.outcome == 'failure' ||
+          steps.init_bootstrap.outcome == 'failure' ||
+          steps.validate_bootstrap.outcome == 'failure' ||
+          steps.init_env.outcome == 'failure' ||
+          steps.validate_env.outcome == 'failure'
+        run: exit 1
