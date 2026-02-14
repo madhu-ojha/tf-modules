@@ -35,7 +35,7 @@ jobs:
 
       # Trivy - Terraform IaC Scan
       - name: Run Trivy IaC Scan
-        uses: aquasecurity/trivy-action@v0.31.0
+        uses: aquasecurity/trivy-action@master
         with:
           scan-type: config
           scan-ref: .
