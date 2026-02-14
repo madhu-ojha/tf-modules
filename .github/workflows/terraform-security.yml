@@ -104,4 +104,4 @@ jobs:
         with:
           sarif_file: semgrep.sarif
           category: 'semgrep'
-        if: success()
+        if: hashFiles('semgrep.sarif') != ''
