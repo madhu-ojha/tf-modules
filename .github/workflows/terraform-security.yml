@@ -26,66 +26,51 @@ permissions:
 
 jobs:
   security:
-    name: Security Scanning - dev
+    name: IaC Security Scanning
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1
+      # Trivy - Terraform IaC Scan
+      - name: Run Trivy IaC Scan
+        uses: aquasecurity/trivy-action@v0.20.0
         with:
-          working_directory: environments
-          format: 'sarif'
-          out: 'tfsec.sarif'
-        continue-on-error: true
+          scan-type: config
+          scan-ref: .
+          format: sarif
+          output: trivy.sarif
+          severity: HIGH,CRITICAL
+          exit-code: 1
 
-      - name: Upload tfsec results to GitHub Security
+      - name: Upload Trivy Results
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: tfsec.sarif
-          category: 'tfsec-dev'
+          sarif_file: trivy.sarif
+          category: trivy
 
+      # Checkov - Terraform Policy Scan
       - name: Run Checkov
-        uses: bridgecrewio/checkov-action@master
+        uses: bridgecrewio/checkov-action@v12
         with:
-          directory: environments
+          directory: .
           framework: terraform
           output_format: sarif
           output_file_path: checkov.sarif
-          quiet: false
-        continue-on-error: true
+          quiet: true
+          soft_fail: false
 
-      - name: Upload Checkov results to GitHub Security
+      - name: Upload Checkov Results
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: checkov.sarif
-          category: 'checkov-dev'
-
-      - name: Comment Security Results on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const checkovFile = 'checkov.sarif';
-            
-            let comment = '## Security Scan Results - dev\n\n';
-            comment += 'Security scans (tfsec, Checkov) completed successfully.\n\n';
-            comment += '**Note**: Review security findings in the [Security tab](../../security) of this repository.\n';
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+          category: checkov
 
   semgrep:
-    name: Semgrep Security Scan
+    name: Semgrep Code Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -97,11 +82,10 @@ jobs:
           generateSarif: true
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-        continue-on-error: true
 
-      - name: Upload Semgrep results
+      - name: Upload Semgrep Results
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep.sarif
-          category: 'semgrep'
+          category: semgrep
         if: hashFiles('semgrep.sarif') != ''
