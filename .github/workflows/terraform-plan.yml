@@ -16,12 +16,8 @@ permissions:
 
 jobs:
   plan:
-    name: Terraform Plan - ${{ matrix.environment }}
+    name: Terraform Plan - dev
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        environment: ['dev', 'staging', 'prod']
-      fail-fast: false
     
     steps:
       - name: Checkout
@@ -41,13 +37,13 @@ jobs:
 
       - name: Terraform Init
         working-directory: environments
-        run: terraform init -upgrade=false
+        run: terraform init -upgrade=false -backend=false
 
       - name: Terraform Plan
         id: plan
-        working-directory: environments
+        working-directory: environments/dev
         run: |
-          terraform plan -var-file="${{ matrix.environment }}/${{ matrix.environment }}.tfvars" -no-color -out=tfplan.binary 2>&1 | tee plan.txt
+          terraform plan -var-file="dev.tfvars" -no-color -out=tfplan.binary 2>&1 | tee plan.txt
           
           # Extract the plan output length for display
           PLAN_SIZE=$(wc -c < plan.txt)
@@ -61,7 +57,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const planFile = 'environments/plan.txt';
+            const planFile = 'environments/dev/plan.txt';
             
             let planContent = '';
             try {
@@ -78,7 +74,7 @@ jobs:
             
             const planStatus = '${{ steps.plan.outcome }}' === 'success' ? 'READY' : 'WARNING';
             
-            let comment = `## Terraform Plan (${planStatus}) - ${{ matrix.environment }}\n\n`;
+            let comment = `## Terraform Plan (${planStatus}) - dev\n\n`;
             comment += '```terraform\n';
             comment += planContent;
             comment += '\n```\n\n';
@@ -96,6 +92,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: terraform-plan-${{ matrix.environment }}
-          path: environments/tfplan.binary
+          name: terraform-plan-dev
+          path: environments/dev/tfplan.binary
           retention-days: 5

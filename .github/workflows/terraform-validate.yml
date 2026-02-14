@@ -27,12 +27,8 @@ permissions:
 
 jobs:
   validate:
-    name: Validate Terraform - ${{ matrix.environment }}
+    name: Validate Terraform
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        environment: ['dev', 'staging', 'prod']
-      fail-fast: false
     
     steps:
       - name: Checkout
@@ -54,7 +50,7 @@ jobs:
         id: init_bootstrap
         run: |
           cd bootstrap
-          terraform init -upgrade=false
+          terraform init -upgrade=false -backend=false
         continue-on-error: true
 
       - name: Validate (Bootstrap)
@@ -64,15 +60,15 @@ jobs:
           terraform validate
         continue-on-error: true
 
-      - name: Init (${{ matrix.environment }} Environment)
+      - name: Init (dev Environment)
         id: init_env
-        working-directory: environments
-        run: terraform init -upgrade=false
+        working-directory: environments/dev
+        run: terraform init -upgrade=false -backend=false
         continue-on-error: true
 
-      - name: Validate (${{ matrix.environment }} Environment)
+      - name: Validate (dev Environment)
         id: validate_env
-        working-directory: environments
+        working-directory: environments/dev
         run: terraform validate
         continue-on-error: true
 
@@ -88,13 +84,13 @@ jobs:
             const init_env = '${{ steps.init_env.outcome }}';
             const validate_env = '${{ steps.validate_env.outcome }}';
             
-            let comment = '## Terraform Validation Results - ${{ matrix.environment }}\n\n';
+            let comment = '## Terraform Validation Results - dev\n\n';
             comment += `| Check | Status |\n|-------|--------|\n`;
             comment += `| Format | ${fmt === 'success' ? 'PASS' : 'FAIL'} |\n`;
             comment += `| Bootstrap Init | ${init_bootstrap === 'success' ? 'PASS' : 'FAIL'} |\n`;
             comment += `| Bootstrap Validate | ${validate_bootstrap === 'success' ? 'PASS' : 'FAIL'} |\n`;
-            comment += `| ${{ matrix.environment }} Init | ${init_env === 'success' ? 'PASS' : 'FAIL'} |\n`;
-            comment += `| ${{ matrix.environment }} Validate | ${validate_env === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            comment += `| dev Init | ${init_env === 'success' ? 'PASS' : 'FAIL'} |\n`;
+            comment += `| dev Validate | ${validate_env === 'success' ? 'PASS' : 'FAIL'} |\n`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,

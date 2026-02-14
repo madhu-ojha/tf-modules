@@ -16,14 +16,10 @@ permissions:
 
 jobs:
   apply:
-    name: Terraform Apply - ${{ matrix.environment }}
+    name: Terraform Apply - dev
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        environment: ['dev', 'staging', 'prod']
-      fail-fast: false
     environment:
-      name: ${{ matrix.environment }}
+      name: dev
       url: https://console.aws.amazon.com/
     
     steps:
@@ -40,30 +36,28 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ap-northeast-1
-          role-session-name: terraform-apply-session-${{ matrix.environment }}
+          role-session-name: terraform-apply-session-dev
 
       - name: Terraform Init
-        working-directory: environments
+        working-directory: environments/dev
         run: terraform init -upgrade=false
 
       - name: Terraform Plan
         id: plan
-        working-directory: environments
-        run: terraform plan -var-file="${{ matrix.environment }}/${{ matrix.environment }}.tfvars" -no-color -out=tfplan.binary
+        working-directory: environments/dev
+        run: terraform plan -var-file="dev.tfvars" -no-color -out=tfplan.binary
 
       - name: Terraform Apply
         id: apply
-        working-directory: environments
+        working-directory: environments/dev
         run: terraform apply -no-color -auto-approve tfplan.binary
-        env:
-          TF_VAR_file: ${{ matrix.environment }}.tfvars
 
       - name: Terraform Output
         id: output
         if: success()
-        working-directory: environments
+        working-directory: environments/dev
         run: |
-          echo "## Terraform Apply Outputs - ${{ matrix.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Terraform Apply Outputs - dev" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           terraform output -no-color -json | jq -r 'to_entries[] | "- **\(.key)**: `\(.value.value)`"' >> $GITHUB_STEP_SUMMARY || true
 
@@ -76,10 +70,10 @@ jobs:
             github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Terraform Apply Failed - ${{ matrix.environment }}`,
+              title: `Terraform Apply Failed - dev`,
 
               body: `
-              Terraform apply failed for **${{ matrix.environment }}** environment.
+              Terraform apply failed for **dev** environment.
               
               **Commit**: ${{ github.sha }}
               **Author**: ${{ github.actor }}
@@ -89,11 +83,11 @@ jobs:
               
               [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
               `,
-              labels: ['terraform', 'failed', '${{ matrix.environment }}']
+              labels: ['terraform', 'failed', 'dev']
             });
 
       - name: Notify on Success
         if: success()
         run: |
-          echo "Terraform apply completed successfully for ${{ matrix.environment }}"
+          echo "Terraform apply completed successfully for dev"
           echo "Review outputs above for any important information"
