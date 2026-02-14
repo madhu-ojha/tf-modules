@@ -1,6 +1,6 @@
 
 provider "aws" {
-  region = "ap-northeast-1"  
+  region = "ap-northeast-1"
 }
 
 
@@ -28,7 +28,7 @@ resource "aws_cloudwatch_log_resource_policy" "opensearch_logs" {
         Principal = {
           Service = "es.amazonaws.com"
         }
-        Action   = [
+        Action = [
           "logs:CreateLogStream",
           "logs:PutLogEvents",
           "logs:DescribeLogGroups",
@@ -64,7 +64,7 @@ module "mod_opensearch_domain" {
   opensearch_ebs_type = "gp3"
   opensearch_ebs_size = 10
 
-  logs_group_arn_index_slow_logs = module.mod_opensearch_index_slow_log.log_group_arn
+  logs_group_arn_index_slow_logs  = module.mod_opensearch_index_slow_log.log_group_arn
   logs_group_arn_search_slow_logs = module.mod_opensearch_search_slow_log.log_group_arn
 
 

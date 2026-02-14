@@ -15,13 +15,13 @@ variable "node_count" {
 variable "dedicated_master_enabled" {
   description = "Enable dedicated master node or not"
   type        = bool
-  default = true
+  default     = true
 }
 
 variable "dedicated_master_type" {
   description = "Dedicated master instance type"
   type        = string
-  default = true
+  default     = true
 }
 
 variable "dedicated_master_count" {
@@ -43,7 +43,7 @@ variable "opensearch_sg_ids" {
 variable "opensearch_ebs_type" {
   description = "Volume type of EBS for opensearch"
   type        = string
-  default = "gp3"
+  default     = "gp3"
 }
 
 variable "opensearch_ebs_size" {
@@ -64,7 +64,7 @@ variable "logs_group_arn_index_slow_logs" {
 
 variable "logs_group_arn_search_slow_logs" {
   description = "Log group arn for search slow logs"
-  type        =  string
+  type        = string
 }
 
 variable "tags" {
