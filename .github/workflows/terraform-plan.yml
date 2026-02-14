@@ -40,6 +40,10 @@ jobs:
         working-directory: environments/dev
         run: terraform init -upgrade=false
 
+      - name: Recreate tfvars
+        run: |
+          echo "${{ secrets.DEV_TFVARS_BASE64 }}" | base64 -d > dev.tfvars
+
       - name: Terraform Plan
         id: plan
         working-directory: environments/dev
