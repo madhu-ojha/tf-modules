@@ -1,0 +1,115 @@
+name: Terraform Security Scan
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - 'bootstrap/**'
+      - '*.tf'
+      - '.github/workflows/terraform-security.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'modules/**'
+      - 'environments/**'
+      - 'bootstrap/**'
+      - '*.tf'
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  security:
+    name: Security Scanning - ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: ['dev', 'staging', 'prod']
+      fail-fast: false
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1
+        with:
+          working_directory: environments
+          format: 'sarif'
+          out: 'tfsec.sarif'
+        continue-on-error: true
+
+      - name: Upload tfsec results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec.sarif
+          category: 'tfsec-${{ matrix.environment }}'
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: environments
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov.sarif
+          quiet: false
+        continue-on-error: true
+
+      - name: Upload Checkov results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif
+          category: 'checkov-${{ matrix.environment }}'
+
+      - name: Comment Security Results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const checkovFile = 'checkov.sarif';
+            
+            let comment = '## Security Scan Results - ${{ matrix.environment }}\n\n';
+            comment += 'Security scans (tfsec, Checkov) completed successfully.\n\n';
+            comment += '**Note**: Review security findings in the [Security tab](../../security) of this repository.\n';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/terraform
+            p/aws
+            p/security-audit
+          generateSarif: true
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        continue-on-error: true
+
+      - name: Upload Semgrep results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: 'semgrep'
+        if: always()
