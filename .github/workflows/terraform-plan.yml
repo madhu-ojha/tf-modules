@@ -37,19 +37,19 @@ jobs:
           role-session-name: terraform-plan-session
 
       - name: Terraform Init
-        working-directory: environments
-        run: terraform init -upgrade=false -backend=false
+        working-directory: environments/dev
+        run: terraform init -upgrade=false
 
       - name: Terraform Plan
         id: plan
         working-directory: environments/dev
         run: |
-          terraform plan -var-file="dev.tfvars" -no-color -out=tfplan.binary 2>&1 | tee plan.txt
-          
-          # Extract the plan output length for display
-          PLAN_SIZE=$(wc -c < plan.txt)
-          echo "plan_size=$PLAN_SIZE" >> $GITHUB_OUTPUT
-        continue-on-error: true
+          terraform plan \
+            -var-file="dev.tfvars" \
+            -no-color \
+            -input=false \
+            -out=tfplan.binary | tee plan.txt
+
 
       - name: Comment Plan on PR
         if: github.event_name == 'pull_request'
