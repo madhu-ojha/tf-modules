@@ -85,7 +85,6 @@ jobs:
   semgrep:
     name: Semgrep Security Scan
     runs-on: ubuntu-latest
-    if: secrets.SEMGREP_APP_TOKEN != ''  # Only run if token is configured
     
     steps:
       - name: Checkout
